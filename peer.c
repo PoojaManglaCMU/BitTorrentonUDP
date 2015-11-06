@@ -22,6 +22,9 @@
 #include "input_buffer.h"
 #include "whohas_handler.h"
 
+/* Global variables*/
+mapping_per_get_req_t mapping_per_get_req;
+bt_config_t config;
 void peer_run(bt_config_t *config);
 
 int main(int argc, char **argv) {
@@ -158,6 +161,7 @@ void peer_run(bt_config_t *config) {
   }
   
   spiffy_init(config->identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
+  config->sock = sock;
   
   while (1) {
     printf("looping for next invocation of select\n");
