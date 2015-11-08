@@ -1,0 +1,118 @@
+gcc -DTESTING			 -c -g -Wall -DDEBUG whohas_handler.c
+whohas_handler.c: In function ‘create_packet’:
+whohas_handler.c:101:9: warning: unused variable ‘k’ [-Wunused-variable]
+     int k =0;
+         ^
+whohas_handler.c: In function ‘packet_sender’:
+whohas_handler.c:146:5: warning: format ‘%d’ expects argument of type ‘int’, but argument 2 has type ‘ssize_t’ [-Wformat=]
+     printf("after sendto: get: %d   pkt_size: %d\n", get, pkt_size);
+     ^
+whohas_handler.c: In function ‘whohas_req’:
+whohas_handler.c:386:13: warning: pointer targets in assignment differ in signedness [-Wpointer-sign]
+         ptr =  whohas_packet + offset;
+             ^
+whohas_handler.c:409:5: warning: implicit declaration of function ‘prep_whohas_hdr’ [-Wimplicit-function-declaration]
+     prep_whohas_hdr(whohas_packet, nchunks);
+     ^
+whohas_handler.c:424:13: warning: pointer targets in passing argument 1 of ‘strlen’ differ in signedness [-Wpointer-sign]
+             printf("size of whohas packet is %d", strlen(whohas_packet));
+             ^
+In file included from whohas_handler.c:3:0:
+/usr/include/string.h:395:15: note: expected ‘const char *’ but argument is of type ‘unsigned char *’
+ extern size_t strlen (const char *__s)
+               ^
+whohas_handler.c:424:13: warning: format ‘%d’ expects argument of type ‘int’, but argument 2 has type ‘size_t’ [-Wformat=]
+             printf("size of whohas packet is %d", strlen(whohas_packet));
+             ^
+whohas_handler.c:350:10: warning: unused variable ‘chunk_hash’ [-Wunused-variable]
+     char    chunk_hash[CHUNK_HSIZE];
+          ^
+whohas_handler.c: In function ‘whohas_resp’:
+whohas_handler.c:489:13: warning: pointer targets in assignment differ in signedness [-Wpointer-sign]
+         ptr =  ihave_packet + offset;
+             ^
+whohas_handler.c:539:5: warning: pointer targets in passing argument 1 of ‘prep_ihave_hdr’ differ in signedness [-Wpointer-sign]
+     prep_ihave_hdr(ihave_packet, nchunks);
+     ^
+In file included from whohas_handler.c:8:0:
+whohas_handler.h:75:6: note: expected ‘char *’ but argument is of type ‘unsigned char *’
+ void prep_ihave_hdr(char* ihave_packet, int nchunks);
+      ^
+whohas_handler.c:567:13: warning: pointer targets in passing argument 1 of ‘strlen’ differ in signedness [-Wpointer-sign]
+             printf("size of ihave packet is %d", strlen(ihave_packet));
+             ^
+In file included from whohas_handler.c:3:0:
+/usr/include/string.h:395:15: note: expected ‘const char *’ but argument is of type ‘unsigned char *’
+ extern size_t strlen (const char *__s)
+               ^
+whohas_handler.c:567:13: warning: format ‘%d’ expects argument of type ‘int’, but argument 2 has type ‘size_t’ [-Wformat=]
+             printf("size of ihave packet is %d", strlen(ihave_packet));
+             ^
+whohas_handler.c:456:19: warning: unused variable ‘tchar’ [-Wunused-variable]
+     unsigned char tchar;
+                   ^
+whohas_handler.c:455:11: warning: unused variable ‘ptr_hash_cpy’ [-Wunused-variable]
+     char*   ptr_hash_cpy;
+           ^
+whohas_handler.c:446:10: warning: unused variable ‘chunk_hash’ [-Wunused-variable]
+     char    chunk_hash[CHUNK_HSIZE];
+          ^
+whohas_handler.c: At top level:
+whohas_handler.c:581:6: warning: conflicting types for ‘prep_whohas_hdr’ [enabled by default]
+ void prep_whohas_hdr(char* whohas_packet, int nchunks)
+      ^
+whohas_handler.c:409:5: note: previous implicit declaration of ‘prep_whohas_hdr’ was here
+     prep_whohas_hdr(whohas_packet, nchunks);
+     ^
+whohas_handler.c: In function ‘send_get_request’:
+whohas_handler.c:718:12: warning: unused variable ‘k’ [-Wunused-variable]
+        int k;
+            ^
+whohas_handler.c: In function ‘ihave_resp_recv_handler’:
+whohas_handler.c:755:9: warning: ‘return’ with a value, in function returning void [enabled by default]
+         return NULL;
+         ^
+whohas_handler.c:738:10: warning: unused variable ‘chunk_hash’ [-Wunused-variable]
+     char chunk_hash[CHUNK_HSIZE];
+          ^
+whohas_handler.c: In function ‘data_packet_handler’:
+whohas_handler.c:890:6: warning: ‘return’ with a value, in function returning void [enabled by default]
+      return 0;
+      ^
+whohas_handler.c:903:18: error: redefinition of ‘result’
+         unsigned result = fwrite(peer_buf[2].data, 1, CHUNK_SIZE, f);
+                  ^
+whohas_handler.c:901:18: note: previous definition of ‘result’ was here
+         unsigned result = fwrite(peer_buf[1].data, 1, CHUNK_SIZE, f);
+                  ^
+whohas_handler.c:862:7: warning: unused variable ‘datafile’ [-Wunused-variable]
+  char datafile[BT_FILENAME_LEN];
+       ^
+whohas_handler.c:861:6: warning: unused variable ‘offset’ [-Wunused-variable]
+  int offset;
+      ^
+whohas_handler.c:860:6: warning: unused variable ‘hash_matched’ [-Wunused-variable]
+  int hash_matched = 0;
+      ^
+whohas_handler.c:859:8: warning: unused variable ‘ptr_hash’ [-Wunused-variable]
+  char* ptr_hash;
+        ^
+whohas_handler.c:858:7: warning: unused variable ‘temp_hash’ [-Wunused-variable]
+  char    temp_hash[CHUNK_HSIZE];
+       ^
+whohas_handler.c:857:7: warning: unused variable ‘line’ [-Wunused-variable]
+  char    line[MAX_LINE_SIZE];
+       ^
+whohas_handler.c:856:8: warning: unused variable ‘fp_data’ [-Wunused-variable]
+  FILE*   fp_data;
+        ^
+whohas_handler.c:855:8: warning: unused variable ‘fp_chunks’ [-Wunused-variable]
+  FILE*   fp_chunks;
+        ^
+whohas_handler.c:854:13: warning: unused variable ‘i’ [-Wunused-variable]
+         int i,k;
+             ^
+whohas_handler.c:852:11: warning: unused variable ‘chunk’ [-Wunused-variable]
+  chunk_t *chunk;
+           ^
+make: *** [whohas_handler.o] Error 1

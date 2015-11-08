@@ -67,8 +67,6 @@ typedef struct mapping_per_get_req_s {
 
 typedef struct data_packet {
     header_t header;
-    short num_chunks;
-    short padding;
     uint8_t data[DATALEN];
 } data_packet_t;
 

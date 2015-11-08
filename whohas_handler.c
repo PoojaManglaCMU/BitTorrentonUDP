@@ -10,15 +10,25 @@
 #include "spiffy.h"
 #include "chunk.h"
 
+#define MAX_PEER 10
+
 extern mapping_per_get_req_t mapping_per_get_req;
 extern bt_config_t config;
-
+//extern char data[CHUNK_SIZE];
+//extern int data_received;
 static const char *type2str[] = { "WHOHAS",
                                   "IHAVE",
                                   "GET",
                                   "DATA",
                                   "ACK",
                                   "DENIED" };
+
+typedef struct {
+       char data[CHUNK_SIZE];
+       int data_received;
+} peer_buf_t;
+
+peer_buf_t peer_buf[MAX_PEER];
 
 /** @brief Print out hash
  *  @param hash the pointer to the hash to be printed out
@@ -47,15 +57,15 @@ void print_pkt(data_packet_t* pkt) {
     fprintf(stderr, "packet_len:\t\t%d\n", hdr->packet_len);
     fprintf(stderr, "seq_num:\t\t%d\n", hdr->seq_num);
     fprintf(stderr, "ack_num:\t\t%d\n", hdr->ack_num);
-   // if (PKT_WHOHAS == hdr->packet_type || PKT_IHAVE == hdr->packet_type) {
-        num = pkt->num_chunks;
-        //fprintf(stderr, "1st bytes data:\t\t%x\n", pkt->data[0]);
-        hash = (uint8_t *)(pkt->data);
+    if (PKT_WHOHAS == hdr->packet_type || PKT_IHAVE == hdr->packet_type) {
+        num = pkt->data[0];
+        fprintf(stderr, "1st bytes data:\t\t%x\n", pkt->data[0]);
+        hash = (uint8_t *)(pkt->data + 4);
         for (i = 0; i < num; i++) {
             print_hash(hash);
             hash += CHUNK_HSIZE;
         }
-   // }
+    }
     fprintf(stderr, ">>>>>>>>>END<<<<<<<<<<<<<\n");
 }
 
@@ -87,12 +97,14 @@ void netToHost(data_packet_t* pkt) {
 
 data_packet_t *create_packet(int type, short pkt_len, u_int seq,
                             u_int ack, uint8_t *data) {
-    printf("packet type is %d, pkt len is %d, seq num is %u, ack num is %u,*********\n", type, pkt_len, seq, ack);
+    printf("packet type is %d, pkt len is %d, seq num is %u, ack num is %u\n", type, pkt_len, seq, ack);
     int k =0;
-    for(k=0; k < CHUNK_HSIZE; k++) {
-        printf("Entered for loop \n");
-        printf("%2X ", data[k]);
-    }
+   /* if(data!=NULL) {
+	    for(k=0; k < CHUNK_HSIZE; k++) {
+      		    printf("Entered for loop \n");
+		    printf("%2X ", data[k]);
+	    }
+    }*/
     data_packet_t *pkt = (data_packet_t *)malloc(sizeof(data_packet_t));
     pkt->header.magicnum = 15441; /* Magic number */
     pkt->header.version = 1;      /* Version number */
@@ -101,17 +113,24 @@ data_packet_t *create_packet(int type, short pkt_len, u_int seq,
     pkt->header.packet_len = pkt_len;
     pkt->header.seq_num = seq;
     pkt->header.ack_num = ack;
-    pkt->num_chunks = (pkt_len-HDR_LEN)/CHUNK_HSIZE;
-    printf("number of chunks is %d***\n", pkt->num_chunks);
-    if( pkt->data != NULL) 
-        memcpy(pkt->data, data, pkt_len-HDR_LEN);
-    for(k=0; k < CHUNK_HSIZE; k++) {
-        printf("Entered for loop \n");
-        printf("%2X ", pkt->data[k]);
-    }
-
+    //pkt->num_chunks = (pkt_len-HDR_LEN)/CHUNK_HSIZE;
+    //printf("number of chunks is %d***\n", pkt->data);
+    if( data != NULL) {
+	    memcpy(pkt->data, data, pkt_len-HDR_LEN);
+	   /* for(k=0; k < CHUNK_HSIZE; k++) {
+		    printf("Entered for loop \n");
+		    printf("%2X ", pkt->data[k]);
+	    }*/
+    } 
     return pkt;
 }
+
+data_packet_t* ACK_maker(int ack, data_packet_t* pkt) {
+    assert(pkt->header.packet_type == PKT_DATA);
+    data_packet_t* ack_pkt = create_packet(PKT_ACK, HDR_LEN, 0, ack, NULL);
+    return ack_pkt;
+}
+
 
 void packet_sender(data_packet_t* pkt, bt_peer_t *peer, int sock) {
     int pkt_size = pkt->header.packet_len;
@@ -123,21 +142,32 @@ void packet_sender(data_packet_t* pkt, bt_peer_t *peer, int sock) {
     hostToNet(pkt);
     fprintf(stderr, "sending pkt*********\n");
     printf("peer is %d ip address %s:%d \n", peer->id, inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
-    get = spiffy_sendto(sock, pkt, 40, 0, (struct sockaddr *) &peer->addr, sizeof(peer->addr));
+    get = spiffy_sendto(sock, pkt, pkt_size, 0, (struct sockaddr *) &peer->addr, sizeof(peer->addr));
+    printf("after sendto: get: %d   pkt_size: %d\n", get, pkt_size);
     if (get == -1)
        printf("error\n");
     fprintf(stderr, "pkt sent successfully!*********\n");
     netToHost(pkt);
 }
 
-void store_data(chunk_t* chunk, data_packet_t* pkt) {
+/*void store_data(chunk_t* chunk, data_packet_t* pkt) {
+    int k, cur_size;
+    cur_size = 0;
+    printf("Reached function store data.. \n");
+    chunk = (chunk_t *)malloc(sizeof(chunk));
     int size = pkt->header.packet_len - pkt->header.header_len;
-    memcpy(chunk->data+chunk->cur_size,pkt->data,size);
+    printf("Size of data packet is %d size of chunk is %d\n", size, chunk->cur_size);
+    cur_size = chunk->cur_size;
+    for (k=0; k < size; k++) {
+    chunk->data[k+cur_size] = pkt->data[k];
+    }
+    printf("Data copying successful \n");
     chunk->cur_size += size;
-}
+    printf("Current size of chunk is %d \n", chunk->cur_size);
+}*/
 
 /* Check if data for a  chunk has finished downloading */
-int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
+/*int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
     FILE*   fp_chunks;
     FILE*   fp_data;
     char    line[MAX_LINE_SIZE];
@@ -157,7 +187,7 @@ int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
     // get hash code
     shahash((uint8_t*)chunk->data,cur_size,hash);
 
-    /* open the chunk file */
+    // open the chunk file 
     if(!(fp_chunks = fopen(config->who_has_chunk_file, "r")))
     {
       printf("Error opening chunkfile\n");
@@ -168,7 +198,7 @@ int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
     while(fgets(line, MAX_LINE_SIZE, fp_chunks) != NULL)
     {
         index++;
-        /* parse the line */
+         parse the line 
         for(i=0; i<MAX_LINE_SIZE; i++)
             if(line[i] == ' ')
                 break;
@@ -189,7 +219,7 @@ int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
             hash_matched = 1;
             if(memcmp(hash, temp_hash, CHUNK_HSIZE))
 		hash_matched = 0;
-          /*  for(k=0; k<CHUNK_HSIZE; k++)
+            for(k=0; k<CHUNK_HSIZE; k++)
             {
                 if(temp_hash[k] != hash)
                 {
@@ -197,7 +227,7 @@ int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
                     break;
                 }
 
-            }*/
+            }
 
             if (hash_matched == 1)
             {
@@ -217,7 +247,7 @@ int is_chunk_finished(chunk_t* chunk, bt_config_t *config) {
        } 
 
        return -1;
-}
+}*/
 
 /*void recur_send(data_packet_t** pkt_array, struct sockaddr* to) {
 	while(chunk not completely transferred) {
@@ -637,7 +667,7 @@ int match_need(uint8_t *hash, int j) {
     int i,k;
     chunk_t* chk = mapping_per_get_req.chunks;
     int hash_matched = 1;
-    printf("Number of available chunks is %d\n", mapping_per_get_req.num_chunk);
+    //printf("Number of available chunks is %d\n", mapping_per_get_req.num_chunk);
     if (mapping_per_get_req.num_chunk == 0) {
 	printf("Number of available chunks is zero\n");
         return -1;
@@ -645,38 +675,39 @@ int match_need(uint8_t *hash, int j) {
 
     // TODO : Add more checks. Basic checks added for now
     for (i=0; i < mapping_per_get_req.num_chunk; i++) {
-        printf("Entering for loop..provider of chunk %d\n", i);
-        printf("Provider of chunk %d is %x\n", i, chk[i].providers);
+      //  printf("Entering for loop..provider of chunk %d\n", i);
+       // printf("Provider of chunk %d is %x\n", i, chk[i].providers);
         if (chk[i].providers != NULL) {
             printf("Provider already present for that chunk\n");
             continue;
         }
-       for(k=0; k<CHUNK_HSIZE; k++) {
-         printf("%2X ", chk[i].hash[k]);
-       }
-       printf("\n ");
-       for(k=0; k<CHUNK_HSIZE; k++) {
-         printf("%2X ", hash[k]);
-       }
+        
+	for(k=0; k<CHUNK_HSIZE; k++) {
+		printf("%2X ", chk[i].hash[k]);
+	}
+	printf("\n ");
+	for(k=0; k<CHUNK_HSIZE; k++) {
+		printf("%2X ", hash[k]);
+	}
 
-         for(k=0; k<CHUNK_HSIZE; k++)
-            {
-                if(chk[i].hash[k] != hash[k])
-                {
-                    hash_matched = 0;
-                    break;
-                }
+	for(k=0; k<CHUNK_HSIZE; k++)
+	{
+		if(chk[i].hash[k] != hash[k])
+		{
+			hash_matched = 0;
+			break;
+		}
 
-            }
-        if(hash_matched == 0) {
-          printf("Hash did not match");
-          continue;
-        } else {
-         printf("Chunk hash found at %d\n", i);
-         return i;
-        }
-    printf("Over to the next iteration\n", i);
-}
+	}
+	if(hash_matched == 0) {
+		printf("Hash did not match");
+		continue;
+	} else {
+		printf("Chunk hash found at %d\n", i);
+		return i;
+	}
+	// printf("Over to the next iteration\n", i);
+    }
     printf("Chunk hash not found\n");
     return -1;
 }
@@ -685,15 +716,15 @@ void send_get_request(uint8_t* hash, bt_peer_t *peer, int sock)
 {
        data_packet_t *packet; // GET packet
        int k;
-       printf ("Entered send get request\n");
-       for(k=0; k<CHUNK_HSIZE; k++) {
+     //  printf ("Entered send get request\n");
+     /*  for(k=0; k<CHUNK_HSIZE; k++) {
          printf("Entered for loop\n");
          printf("%2X ",hash[k]);
-       }
+       }*/
 	packet = create_packet(PKT_GET,
                                HDR_LEN + CHUNK_HSIZE,
                                0, 0, (uint8_t *)hash);
-        print_pkt(packet);
+        //print_pkt(packet);
         packet_sender(packet, peer, sock);
         printf("GET packet sent successfully\n");
 }  
@@ -703,25 +734,17 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
 {
     printf("Reached IHAVE response handler\n");
     int i;
-    for(i=0; i<20; i++)
-        printf("%2X ", ihave_packet[i]);
-    printf("\n");
-    for(i=20; i<40; i++)
-        printf("%2X ", ihave_packet[i]);
-    printf("\n");
-    for(i=40; i<60; i++)
-        printf("%2X ", ihave_packet[i]);
-    printf("\n");
-    printf("Reached here..Getting peer\n"); 
-    //assert(ihave_packet != NULL);
+    assert(ihave_packet != NULL);
     char chunk_hash[CHUNK_HSIZE];
-    printf("Initialized hash..\n");
+    //printf("Initialized hash..\n");
     bt_peer_t* peer = bt_peer_get(config, from);
-    printf("peer is %x\n", peer);
+    //printf("peer is %x\n", peer);
     printf("peer is %d ip address %s:%d \n", peer->id, inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
-    printf("Reached here..Getting chunk\n");
+    /*if(peer->id == 1)
+       return;*/
+    //printf("Reached here..Getting chunk\n");
     chunk_t* chk = mapping_per_get_req.chunks;
-    printf("Got chunk.. \n");
+    //printf("Got chunk.. \n");
     uint8_t *hash; // incoming hash to meet my needs
     uint8_t *hash_cpy;
     int match_idx, t, k;
@@ -731,7 +754,7 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
         printf("no chunks in ihave packet\n"); 
         return NULL;
     }
-    printf("Reached here..before computing hash..nuchunks is %d\n", nuchunks_incoming);
+    //printf("Reached here..before computing hash..nuchunks is %d\n", nuchunks_incoming);
     
     for(t=0; t < nuchunks_incoming; t++)
     {
@@ -742,7 +765,6 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
 	    }
         printf("\n");
     }
-
     printf("No. of incoming chunks is %d\n", nuchunks_incoming);
     for (i = 0; i < nuchunks_incoming; i++) {
                         printf("Entering for loop\n");  
@@ -750,10 +772,12 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
 			if (match_idx != -1) {
                         printf("Found match, update mapping\n");
 					chk[match_idx].providers = peer;
+                                        peer->sent_req = 1;
 					chk[match_idx].num_p = 1;
 					mapping_per_get_req.num_downloaded |= (1 << match_idx);
                                         memcpy(hash_cpy, hash, CHUNK_HSIZE);
 					send_get_request(hash_cpy, peer, sock);
+                                        break;
 			}
 			hash += CHUNK_HSIZE;
 	} 
@@ -823,16 +847,124 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
     return NULL;
 }*/
 
-void data_packet_handler(char* buf, struct sockaddr *from, int sock, bt_config_t *config) 
+void data_packet_handler(char* buf, bt_peer_t *peer, int sock, bt_config_t *config) 
 {  
 	chunk_t *chunk;
         data_packet_t* ack_pkt;
+        int i,k;
+	FILE*   fp_chunks;
+	FILE*   fp_data;
+	char    line[MAX_LINE_SIZE];
+	char    temp_hash[CHUNK_HSIZE];
+	char* ptr_hash;
+	int hash_matched = 0;
+	int offset;
+	char datafile[BT_FILENAME_LEN];
+
 	fprintf(stderr, "receive data pkt,seq%d\n",
                          ((data_packet_t*)buf)->header.seq_num);
 	   // TODO storing data in a chunk structure for now. 
 	   // Will store in file once completely downloaded
-	   store_data(chunk, (data_packet_t*)buf);
-           int finished = is_chunk_finished(chunk, config);
+	 printf("Storing data in chunk\n");
+         /*for(i=0; i< DATALEN; i++)
+            printf("%c", data[i]);*/
+         printf("\n");
+         //printf("%d\n", data_received);
+         int size = ((data_packet_t*)buf)->header.packet_len - ((data_packet_t*)buf)->header.header_len;
+	 printf("Size of data packet is %d data_received is %d\n", size, peer_buf[peer->id].data_received);
+	 //data_received += size;
+	 for (k=0; k < size; k++) {
+		 peer_buf[peer->id].data[k+ peer_buf[peer->id].data_received] = ((data_packet_t*)buf)->data[k];
+             //    printf("%c", data[k+data_received]);
+              //   printf("%d\n", k);
+	 }
+	 printf("Data copying successful \n");
+	 peer_buf[peer->id].data_received += size;
+         printf("data_received is %d\n", peer_buf[peer->id].data_received);
+         float kb = peer_buf[peer->id].data_received/1024;
+         ack_pkt = ACK_maker(((data_packet_t*)buf)->header.seq_num,(data_packet_t*)buf);
+                    // send ACK pkt
+         packet_sender(ack_pkt,peer, sock); 
+         if (peer_buf[peer->id].data_received != CHUNK_SIZE) {
+            printf("Not finished yet, cur_size = %.5f\n", kb);
+	    return 0;
+        }
+        if((peer_buf[1].data_received == CHUNK_SIZE) && (peer_buf[2].data_received == CHUNK_SIZE))
+           
+        printf("-----------------------------------------------------------------------------------------------------------------------------------------\n");
+        printf("Writing to a file.. \n");
+
+        FILE * f = fopen ("test1.tar", "w");
+        if (f == NULL)
+   	    printf("open error\n");
+        //fseek (fp_data, offset, SEEK_SET);
+        unsigned result = fwrite(peer_buf[1].data, 1, CHUNK_SIZE, f);
+        if (result != CHUNK_SIZE)
+            printf("write error\n");
+        //fseek (f, 512, SEEK_SET);
+        result = fwrite(peer_buf[2].data, 1, CHUNK_SIZE, f);
+        if (result != CHUNK_SIZE) 
+            printf("write error\n");
+        int close = fclose(f);
+             if (close != 0) printf("closing error\n");
+        printf("File successfully written\n");
+        
+	/* uint8_t hash[CHUNK_HSIZE];
+	 // get hash code
+	 shahash((uint8_t*)chunk->data,cur_size,hash);
+
+	 // open the chunk file 
+	 if(!(fp_chunks = fopen(config->who_has_chunk_file, "r")))
+	 {
+		 printf("Error opening chunkfile\n");
+		 exit(-1);
+	 }
+	 int index = 0;
+	 // check hash code
+	 while(fgets(line, MAX_LINE_SIZE, fp_chunks) != NULL)
+	 {
+		 index++;
+		 //parse the line 
+		 for(i=0; i<MAX_LINE_SIZE; i++)
+			 if(line[i] == ' ')
+				 break;
+
+		 if(i == MAX_LINE_SIZE)
+		 {
+			 printf("Error parsing chunk line\n");
+			 return -1;
+		 }
+
+		 ptr_hash = &(line[i+1]);
+
+		 for(k=0; k<CHUNK_HSIZE; k++)
+		 {
+			 temp_hash[k] = text2num(ptr_hash);
+			 ptr_hash += 2;
+		 }
+		 hash_matched = 1;
+		 if(memcmp(hash, temp_hash, CHUNK_HSIZE))
+			 hash_matched = 0;
+                   if (hash_matched == 1)
+		   {
+			   offset = index*512*1024;
+                // Open a data file and write the data at that offset
+			   fp_data = fopen(datafile, "a");
+			   //int offset_file = lseek(fp_data, offset,SEEK_SET);
+			   // fprintf(fp_data, "%s", chunk->data);
+			   //FILE * f = fopen ("x.txt", "w");
+			   fseek (fp_data, offset, SEEK_SET);
+			   fwrite (chunk->data, 1, 1, fp_data);
+
+			   chunk->downloaded = 1;
+			   // Set peer to available
+			   return 1;
+		   }
+	 }
+
+	 return -1;*/
+	// store_data(chunk, (data_packet_t*)buf);
+        // int finished = is_chunk_finished(chunk, config);
         /*    if(finished == 1) {
 	   // Construct ACK pkt
 	   //data_packet_t* ack_pkt = ACK_maker(++(down_conn->next_pkt),

@@ -25,12 +25,18 @@
 /* Global variables*/
 mapping_per_get_req_t mapping_per_get_req;
 bt_config_t config;
+char data[CHUNK_SIZE];
+int data_received;
 void peer_run(bt_config_t *config);
 
 int main(int argc, char **argv) {
   bt_config_t config;
 
   bt_init(&config, argc, argv);
+  
+  data_received = 0;
+  
+  memset(&data[0], 0, sizeof(data));
 
   DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
 
@@ -70,36 +76,39 @@ void process_inbound_udp(int sock, bt_config_t *config) {
  
  char token = buf[3];
  printf("packet is %s , size is %zd and packet type is %2X\n", (unsigned char*)buf, sizeof(buf),token);
- for(i=0; i<20; i++)
-        printf("%2X ", buf[i]);
-    printf("\n");
-    for(i=20; i<40; i++)
-        printf("%2X ", buf[i]);
-    printf("\n");
-    for(i=40; i<60; i++)
-        printf("%2X ", buf[i]);
-    printf("\n");
-	bt_peer_t* peer = bt_peer_get(&config,(struct sockaddr *)&from);
-
-	if (token == 0x0) { // WHOHAS packet
-    	printf("It is a WHOHAS request %s\n", buf);
-        whohas_resp(buf, config->has_chunk_file, sock, config);
-    } else if (token == 0x1) { //IHAVE packet
-		printf("It is an IHAVE packet %s\n",buf);
-		ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
-	} else if (token == 0x2) { //GET packet
-		printf("It is a GET packet %s\n", buf);
-		get_resp(buf, config, (struct sockaddr *) &from);
-	} else if (token == 0x3) { //DATA packet
-		printf("It is a DATA packet %s\n", buf);
-		data_packet_handler(buf, (struct sockaddr *) &from, sock, config);
-	} else if (token == 0x4) { //ACK packet
-		printf("It is an ACK %s\n",buf);
-		//handle_ack();
-	} else if (token == 0x5) { //DENIED packet
-		printf("It is a DENIED response %s\n", buf);
-		//handle_denied();
-	}
+ netToHost((data_packet_t*)buf);
+ print_pkt((data_packet_t *)buf);
+ /*for(i=0; i<20; i++)
+	 printf("%2X ", buf[i]);
+ printf("\n");
+ for(i=20; i<40; i++)
+	 printf("%2X ", buf[i]);
+ printf("\n");*/
+ /*for(i=40; i<60; i++)
+	 printf("%2X ", buf[i]);
+ printf("\n");*/
+ printf("Reached here.. \n");
+ bt_peer_t* peer = bt_peer_get(config,(struct sockaddr *)&from);
+ printf("Got peer %x\n", peer);
+ if (token == 0x0) { // WHOHAS packet
+	 printf("It is a WHOHAS request %s\n", buf);
+	 whohas_resp(buf, config->has_chunk_file, sock, config);
+ } else if (token == 0x1) { //IHAVE packet
+	 printf("It is an IHAVE packet %s\n",buf);
+	 ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
+ } else if (token == 0x2) { //GET packet
+	 printf("It is a GET packet %s\n", buf);
+	 get_resp(buf, config, (struct sockaddr *) &from);
+ } else if (token == 0x3) { //DATA packet
+	 printf("It is a DATA packet %s\n", buf);
+	 data_packet_handler(buf, peer, sock, config);
+ } else if (token == 0x4) { //ACK packet
+	 printf("It is an ACK %s\n",buf);
+	 //handle_ack();
+ } else if (token == 0x5) { //DENIED packet
+	 printf("It is a DENIED response %s\n", buf);
+	 //handle_denied();
+ }
 
  return;
 }

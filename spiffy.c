@@ -17,23 +17,18 @@ struct sockaddr_in gsSpiffyRouter;
 ssize_t spiffy_sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen) {
 	void *newbuf = NULL;
 	spiffy_header s_head;
-        printf ("Entered here..\n");
 	if (0 == giSpiffyEnabled) {
                 printf ("Spiffy not enabled\n");
 		return sendto(s, msg, len, flags, to, tolen);
         }
-        printf("Reached here.. \n");
 	newbuf = (void *) malloc(sizeof(spiffy_header) + len);
 	if (newbuf == NULL) {
                 printf ("newbuf is NULL, return\n");
 		errno = ENOMEM;
 		return -1; 
 	}
-        printf("Reached here(1).. \n");
 	if (to->sa_family == AF_INET) {
-                printf("Reached if.. \n");
         	s_head.lDestAddr = ((struct sockaddr_in*)to)->sin_addr.s_addr;
-                printf("Reached if(1).. \n");
         	s_head.lDestPort = ((struct sockaddr_in*)to)->sin_port;
 		printf ("Sending to %s:%hd\n", inet_ntoa(((struct sockaddr_in*)to)->sin_addr), ntohs(((struct sockaddr_in*)to)->sin_port));
 	} else {
@@ -41,14 +36,12 @@ ssize_t spiffy_sendto(int s, const void *msg, size_t len, int flags, const struc
 		errno = ENOTSUP;
 		return -1;
 	}
-        printf("Reached here(2).. \n");
 	s_head.ID = htonl(glNodeID);
 	s_head.lSrcAddr = glSrcAddr;
 	s_head.lSrcPort = gsSrcPort;
 
 	memcpy(newbuf + sizeof(spiffy_header), msg, len);
 	memcpy(newbuf, &s_head, sizeof(spiffy_header));
-        printf ("Sending...\n");
 	int retVal = sendto(s, newbuf, len + sizeof(spiffy_header), flags, (struct sockaddr *) &gsSpiffyRouter, sizeof(gsSpiffyRouter));
         printf ("Sent, retval is %d...\n", retVal);
 	free(newbuf);
