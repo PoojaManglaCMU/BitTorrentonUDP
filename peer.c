@@ -75,21 +75,12 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 	 buf);
  
  char token = buf[3];
- printf("packet is %s , size is %zd and packet type is %2X\n", (unsigned char*)buf, sizeof(buf),token);
+ printf("self id is %d, packet is %s , size is %zd and packet type is %2X\n, sock is %d", config->identity, (unsigned char*)buf, sizeof(buf),token, sock);
  netToHost((data_packet_t*)buf);
- print_pkt((data_packet_t *)buf);
- /*for(i=0; i<20; i++)
-	 printf("%2X ", buf[i]);
- printf("\n");
- for(i=20; i<40; i++)
-	 printf("%2X ", buf[i]);
- printf("\n");*/
- /*for(i=40; i<60; i++)
-	 printf("%2X ", buf[i]);
- printf("\n");*/
+ //print_pkt((data_packet_t *)buf);
  printf("Reached here.. \n");
  bt_peer_t* peer = bt_peer_get(config,(struct sockaddr *)&from);
- printf("Got peer %x\n", peer);
+ printf("Got peer %x %d\n", peer, peer->id);
  if (token == 0x0) { // WHOHAS packet
 	 printf("It is a WHOHAS request %s\n", buf);
 	 whohas_resp(buf, config->has_chunk_file, sock, config);
@@ -98,12 +89,13 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 	 ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
  } else if (token == 0x2) { //GET packet
 	 printf("It is a GET packet %s\n", buf);
-	 get_resp(buf, config, (struct sockaddr *) &from);
+	 get_resp(config, buf, (struct sockaddr *) &from);
  } else if (token == 0x3) { //DATA packet
 	 printf("It is a DATA packet %s\n", buf);
-	 data_packet_handler(buf, peer, sock, config);
+	 data_packet_handler(config, buf, peer, sock);
  } else if (token == 0x4) { //ACK packet
-	 printf("It is an ACK %s\n",buf);
+	 printf("It is an ACK , number is %d\n", ((data_packet_t *)buf)->header.ack_num);
+         //print_pkt(((data_packet_t *)buf))->header.seq_num;
 	 //handle_ack();
  } else if (token == 0x5) { //DENIED packet
 	 printf("It is a DENIED response %s\n", buf);
@@ -116,9 +108,10 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 void process_get(char *chunkfile, char *outputfile, bt_config_t *config, int sock) {
   printf("PROCESS GET SKELETON CODE CALLED.  Fill me in!  (%s, %s)\n", 
 	chunkfile, outputfile);
-
+   
+  printf("peer is %x\n", config->peers);
   /* Prepare a whohas packet */
-  init_mapping_per_get_req(chunkfile,outputfile);
+  init_mapping_per_get_req(chunkfile, outputfile);
   printf(" Calling whohas_req\n");
   whohas_req(chunkfile, sock, config);
   printf(" GET processed successfully\n");
@@ -129,11 +122,11 @@ void handle_user_input(char *line, void *cbdata, bt_config_t *config, int sock) 
   char chunkf[128], outf[128];
   char token = line[3];
   printf("packet type is %c\n", token);
+  printf("peer is %x\n", config->peers);
   
   bzero(chunkf, sizeof(chunkf));
   bzero(outf, sizeof(outf));
   if (sscanf(line, "GET %120s %120s", chunkf, outf)) {
-          strcpy(config->who_has_chunk_file, chunkf);
 	  if (strlen(outf) > 0) {
 		  process_get(chunkf, outf, config, sock);
 	  }
@@ -158,6 +151,7 @@ void peer_run(bt_config_t *config) {
     perror("peer_run could not create socket");
     exit(-1);
   }
+  printf("identity is %d and sock is %d\n", config->identity, sock);
   
   bzero(&myaddr, sizeof(myaddr));
   myaddr.sin_family = AF_INET;
@@ -180,6 +174,7 @@ void peer_run(bt_config_t *config) {
     FD_SET(sock, &readfds);
     
     nfds = select(sock+1, &readfds, NULL, NULL, NULL);
+    printf("identity is %d and sock is %d\n", config->identity, sock);
     
     if (nfds > 0) {
       if (FD_ISSET(sock, &readfds)) {

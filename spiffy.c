@@ -44,6 +44,7 @@ ssize_t spiffy_sendto(int s, const void *msg, size_t len, int flags, const struc
 	memcpy(newbuf, &s_head, sizeof(spiffy_header));
 	int retVal = sendto(s, newbuf, len + sizeof(spiffy_header), flags, (struct sockaddr *) &gsSpiffyRouter, sizeof(gsSpiffyRouter));
         printf ("Sent, retval is %d...\n", retVal);
+        if(retVal < 0) {perror("Error: ");}
 	free(newbuf);
         if (retVal > 0) retVal -= sizeof(spiffy_header);
 	return retVal;

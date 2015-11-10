@@ -130,7 +130,7 @@ void bt_parse_peer_list(bt_config_t *config) {
   char line[BT_FILENAME_LEN], hostname[BT_FILENAME_LEN];
   int nodeid, port;
   struct hostent *host;
-
+  printf("parsing peer list\n");
   assert(config != NULL);
   
   f = fopen(config->peer_list_file, "r");
@@ -153,6 +153,7 @@ void bt_parse_peer_list(bt_config_t *config) {
 
     node->next = config->peers;
     config->peers = node;
+    printf("peer is %x\n", config->peers);
   }
 }
 

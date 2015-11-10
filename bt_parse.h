@@ -31,7 +31,6 @@ struct bt_config_s {
   char  has_chunk_file[BT_FILENAME_LEN];
   char  output_file[BT_FILENAME_LEN];
   char  peer_list_file[BT_FILENAME_LEN];
-  char  who_has_chunk_file[BT_FILENAME_LEN];
   int   max_conn;
   short identity;
   unsigned short myport;
