@@ -22,6 +22,8 @@
 #include "input_buffer.h"
 #include "whohas_handler.h"
 
+ #define BUFLEN 2048
+
 /* Global variables*/
 mapping_per_get_req_t mapping_per_get_req;
 bt_config_t config;
@@ -30,7 +32,7 @@ int data_received;
 void peer_run(bt_config_t *config);
 
 int main(int argc, char **argv) {
-  bt_config_t config;
+  //bt_config_t config;
 
   bt_init(&config, argc, argv);
   
@@ -59,48 +61,42 @@ int main(int argc, char **argv) {
 }
 
 
-void process_inbound_udp(int sock, bt_config_t *config) {
-  #define BUFLEN 1500
+void process_inbound_udp(int sock, bt_config_t *config)
+{
   struct sockaddr_in from;
   socklen_t fromlen;
   char buf[BUFLEN];
   int i;
   fromlen = sizeof(from);
+
+  /* receive the pending request */
   spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *)&from, &fromlen);
 
-  printf("PROCESS_INBOUND_UDP SKELETON -- replace!\n"
-	 "Incoming message from %s:%d\n%s\n\n", 
-	 inet_ntoa(from.sin_addr),
-	 ntohs(from.sin_port),
-	 buf);
+  printf("process_inbound_udp: %s:%d\n\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
  
- char token = buf[3];
- printf("self id is %d, packet is %s , size is %zd and packet type is %2X\n, sock is %d", config->identity, (unsigned char*)buf, sizeof(buf),token, sock);
- netToHost((data_packet_t*)buf);
- //print_pkt((data_packet_t *)buf);
- printf("Reached here.. \n");
- bt_peer_t* peer = bt_peer_get(config,(struct sockaddr *)&from);
- printf("Got peer %x %d\n", peer, peer->id);
- if (token == 0x0) { // WHOHAS packet
-	 printf("It is a WHOHAS request %s\n", buf);
+  char token = buf[3];
+  printf("self id is %d, and packet type is %2X\n, sock is %d", config->identity, token, sock);
+
+  /* change the endianess of the header */
+  netToHost((data_packet_t*)buf);
+
+  /* based on ip, identify the peer id */
+  bt_peer_t* peer = bt_peer_get(config,(struct sockaddr *)&from);
+  printf("Got peer %x %d\n", peer, peer->id);
+
+ if (token == 0x0)  /* whohas */
 	 whohas_resp(buf, config->has_chunk_file, sock, config);
- } else if (token == 0x1) { //IHAVE packet
-	 printf("It is an IHAVE packet %s\n",buf);
+ else if (token == 0x1) /* IHAVE */
 	 ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
- } else if (token == 0x2) { //GET packet
-	 printf("It is a GET packet %s\n", buf);
-	 get_resp(config, buf, (struct sockaddr *) &from);
- } else if (token == 0x3) { //DATA packet
-	 printf("It is a DATA packet %s\n", buf);
+ else if (token == 0x2)  /* GET packet */
+    get_resp(config, buf, (struct sockaddr *) &from);
+ else if (token == 0x3)  /* DATA packet */
 	 data_packet_handler(config, buf, peer, sock);
- } else if (token == 0x4) { //ACK packet
-	 printf("It is an ACK , number is %d\n", ((data_packet_t *)buf)->header.ack_num);
-         //print_pkt(((data_packet_t *)buf))->header.seq_num;
-	 //handle_ack();
- } else if (token == 0x5) { //DENIED packet
-	 printf("It is a DENIED response %s\n", buf);
-	 //handle_denied();
- }
+ else if (token == 0x4) /* ACK packet */
+   // notify_ack_recvied(peer->id, ((data_packet_t *)buf)->header.ack_num, 0); //TODO: chunk_num irrelevant
+   ;
+ else if (token == 0x5) /* DENIED packet */
+   ;
 
  return;
 }
