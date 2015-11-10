@@ -852,21 +852,15 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock)
 		   }
 	   }
    }
- 
-   /*for ( i=0 ; i < CHUNK_SIZE; i++)
-	   peer_buf[0].data[0]= 0;
-   data_send=&peer_buf[0].data[0];*/
-   //printf("Sending data\n");
-   i=0;
+   fclose(index_file);
    cur_size=0;
    for (i = 0;i < 512;i++) {
 	   cur_size+= packet_sender(config, data_pkt_array[i], peer, sock);
 	   printf("packet sent successfully, cur_size is %u i is %d\n",cur_size, i);
-	   //data_send= &peer_buf[0].data[cur_size];
-	   //seq_num++;
+	   sleep(1);
    }
-//   printf("data sent successfully\n");
-
+ free(data_pkt_array);
+ return;
 }
   
 void send_ack(int peer_num, int seq_num, int chunk_num)
