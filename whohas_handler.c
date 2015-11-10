@@ -13,6 +13,24 @@
 #include "spiffy.h"
 #include "chunk.h"
 
+#define FC_RECV
+void flow_ctrl_init();
+
+/* DUT as sender */
+/* should be invoked on a get request */
+void notify_chunk_trans_start(int peer_num, int chunk_num);
+int update_sender_window(int peer_num, int ack_num);
+void notify_packet_sent(int peer_num, int seq_num, int chunk_num);
+void notify_ack_recvied(int peer_num, int ack_num, int chunk_num);
+
+/* DUT as receiver */
+/* should be invoked on sending a get request */
+void notify_chunk_dwnl_start(int peer_num, int chunk_num);
+int update_receiver_window(int peer_num, int seq_num);
+/* should be invoked when correct packet of a chunk received */
+int notify_packet_recv(int peer_num, int seq_num, int chunk_num);
+void notify_ack_sent(int peer_num, int ack_num, int chunk_num);
+
 #define MAX_PEER 10
 #define HASH_HEX_SIZE 40
 
@@ -858,4 +876,9 @@ void send_ack(int peer_num, int seq_num, int chunk_num)
     hostToNet(ack_pkt);
     spiffy_sendto(peer_sfd, ack_pkt, ack_pkt->header.packet_len, 0, (struct sockaddr *) &peer->addr, sizeof(peer->addr));
     printf("send_ack - peer_num:%d  seq_num:%d   chunk_num:%d\n", peer_num, seq_num, chunk_num);
+}
+
+void send_chunk(int peer_num, int seq_num, int chunk_num)
+{
+    ;
 }

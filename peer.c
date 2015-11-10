@@ -23,6 +23,7 @@
 #include "whohas_handler.h"
 
 #define BUFLEN 1500
+ #define FC_RECV
 
 /* Global variables*/
 mapping_per_get_req_t   mapping_per_get_req;
