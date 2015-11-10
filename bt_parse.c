@@ -185,3 +185,15 @@ bt_peer_t* bt_peer_get(bt_config_t* config, struct sockaddr * from) {
   }
   return cur_p;
 }
+
+bt_peer_t* bt_peer_get_addr(bt_config_t* config, int peer_num) {
+  bt_peer_t* cur_p = config->peers;
+  while(cur_p != NULL) {
+    if( cur_p->id == peer_num) {
+        return cur_p;
+    } else {
+      cur_p = cur_p->next;
+    }
+  }
+  return cur_p;
+}

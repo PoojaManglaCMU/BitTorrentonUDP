@@ -22,23 +22,20 @@
 #include "input_buffer.h"
 #include "whohas_handler.h"
 
- #define BUFLEN 2048
+#define BUFLEN 1500
 
 /* Global variables*/
-mapping_per_get_req_t mapping_per_get_req;
-bt_config_t config;
-char data[CHUNK_SIZE];
-int data_received;
+mapping_per_get_req_t   mapping_per_get_req;
+bt_config_t             config;
+int   peer_sfd = 0;
+
 void peer_run(bt_config_t *config);
 
-int main(int argc, char **argv) {
-  //bt_config_t config;
+int main(int argc, char **argv)
+{
 
+  //bt_config_t config;
   bt_init(&config, argc, argv);
-  
-  data_received = 0;
-  
-  memset(&data[0], 0, sizeof(data));
 
   DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
 
@@ -55,8 +52,8 @@ int main(int argc, char **argv) {
     bt_dump_config(&config);
   }
 #endif
-  printf("identity is %d\n", config.identity); 
   peer_run(&config);
+
   return 0;
 }
 
@@ -67,9 +64,8 @@ void process_inbound_udp(int sock, bt_config_t *config)
   socklen_t fromlen;
   char buf[BUFLEN];
   int i;
+  
   fromlen = sizeof(from);
-
-  /* receive the pending request */
   spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *)&from, &fromlen);
 
   printf("process_inbound_udp: %s:%d\n\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
@@ -101,24 +97,19 @@ void process_inbound_udp(int sock, bt_config_t *config)
  return;
 }
 
-void process_get(char *chunkfile, char *outputfile, bt_config_t *config, int sock) {
-  printf("PROCESS GET SKELETON CODE CALLED.  Fill me in!  (%s, %s)\n", 
-	chunkfile, outputfile);
-   
-  printf("peer is %x\n", config->peers);
-  /* Prepare a whohas packet */
+void process_get(char *chunkfile, char *outputfile, bt_config_t *config, int sock)
+{
   init_mapping_per_get_req(chunkfile, outputfile);
-  printf(" Calling whohas_req\n");
+
+  /* Prepare a whohas packet */
   whohas_req(chunkfile, sock, config);
-  printf(" GET processed successfully\n");
+
   return;
 }
 
-void handle_user_input(char *line, void *cbdata, bt_config_t *config, int sock) {
+void handle_user_input(char *line, void *cbdata, bt_config_t *config, int sock)
+{
   char chunkf[128], outf[128];
-  char token = line[3];
-  printf("packet type is %c\n", token);
-  printf("peer is %x\n", config->peers);
   
   bzero(chunkf, sizeof(chunkf));
   bzero(outf, sizeof(outf));
@@ -127,16 +118,16 @@ void handle_user_input(char *line, void *cbdata, bt_config_t *config, int sock) 
 		  process_get(chunkf, outf, config, sock);
 	  }
   }
-  printf("Handled user input\n");
   return;
 }
 
-
-void peer_run(bt_config_t *config) {
+void peer_run(bt_config_t *config)
+{
   int sock;
   struct sockaddr_in myaddr;
   fd_set readfds;
   struct user_iobuf *userbuf;
+  int nfds;
   
   if ((userbuf = create_userbuf()) == NULL) {
     perror("peer_run could not allocate userbuf");
@@ -147,7 +138,6 @@ void peer_run(bt_config_t *config) {
     perror("peer_run could not create socket");
     exit(-1);
   }
-  printf("identity is %d and sock is %d\n", config->identity, sock);
   
   bzero(&myaddr, sizeof(myaddr));
   myaddr.sin_family = AF_INET;
@@ -161,26 +151,30 @@ void peer_run(bt_config_t *config) {
   
   spiffy_init(config->identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
   config->sock = sock;
+  peer_sfd = sock;
   
-  while (1) {
+  printf("identity is %d and sock is %d\n", config->identity, sock);
+
+#ifdef FC_RECV
+  flow_ctrl_init();
+#endif
+
+  while (1)
+  {
     printf("looping for next invocation of select\n");
-    int nfds;
     FD_ZERO(&readfds);
     FD_SET(STDIN_FILENO, &readfds);
     FD_SET(sock, &readfds);
     
     nfds = select(sock+1, &readfds, NULL, NULL, NULL);
-    printf("identity is %d and sock is %d\n", config->identity, sock);
     
     if (nfds > 0) {
-      if (FD_ISSET(sock, &readfds)) {
-	process_inbound_udp(sock, config);
-      }
+      if (FD_ISSET(sock, &readfds))
+	       process_inbound_udp(sock, config);
       
-      if (FD_ISSET(STDIN_FILENO, &readfds)) {
-	process_user_input(STDIN_FILENO, userbuf, handle_user_input,
-			   "Currently unused", config , sock);
-      }
+      if (FD_ISSET(STDIN_FILENO, &readfds))
+	         process_user_input(STDIN_FILENO, userbuf, handle_user_input,
+			                         "Currently unused", config , sock);
     }
   }
 }
