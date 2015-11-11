@@ -880,6 +880,8 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock)
 				   //data_pkt_array[i] = create_packet(PKT_DATA, 1040,i+1,0, src+index*CHUNK_SIZE+i*1024);
 				   create_chunk_pkts(PKT_DATA, 1040, i+1, 0, src+index*CHUNK_SIZE+i*1024, 
                                         &(peer_send_info[peer->id].data[1040*i]));
+                   //print_pkt(&(peer_send_info[peer->id].data[1040*i]));
+                   //sleep(5);
 			   }
 			   munmap(src,statbuf.st_size);
 //			   print_pkt((data_packet_t*)(data_pkt_array[0]));
@@ -925,6 +927,7 @@ void send_chunk(int peer_num, int seq_num, int chunk_num)
     printf("send_chunk: before bt_peer_get_addr\n");
     bt_peer_t* peer = bt_peer_get_addr(&config, peer_num);
     printf("send_chunk: after bt_peer_get_addr\n");
+    hostToNet(&(peer_send_info[peer_num].data[1040*(seq_num-1)]));
     spiffy_sendto(peer_sfd, &(peer_send_info[peer_num].data[1040*(seq_num-1)]), 1040, 0, (struct sockaddr *) &peer->addr, sizeof(peer->addr));
     printf("send_chunk: after spiffy_sendto\n");
     (peer_send_info[peer_num].npkts_sent)++;
