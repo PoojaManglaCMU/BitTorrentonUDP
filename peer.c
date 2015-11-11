@@ -67,12 +67,11 @@ void process_inbound_udp(int sock, bt_config_t *config)
   int i;
   
   fromlen = sizeof(from);
-  spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *)&from, &fromlen);
+  int nbytes = spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *)&from, &fromlen);
 
   printf("process_inbound_udp: %s:%d\n\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
  
   char token = buf[3];
-  printf("self id is %d, and packet type is %2X\n, sock is %d", config->identity, token, sock);
 
   /* change the endianess of the header */
   netToHost((data_packet_t*)buf);
