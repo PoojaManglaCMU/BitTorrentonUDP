@@ -736,6 +736,8 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
         }
         
         printf("Received complete chunk, Store in data file\n");
+        shahash(peer_buf[peer->id].data,peer_buf[peer->id].data_received, hash);
+        print_hash(hash);
         
         if((peer_buf[1].data_received == CHUNK_SIZE) && (peer_buf[2].data_received == CHUNK_SIZE)) {
         // get hash code
@@ -815,12 +817,14 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock)
 {
 
    //printf("Handling Get Packet, self id is %d, sock is %d\n", config->identity, config->sock);
-   data_packet_t** data_pkt_array = (data_packet_t**)malloc(512*sizeof(data_packet_t*));
+   //data_packet_t** data_pkt_array = (data_packet_t**)malloc(512*sizeof(data_packet_t*));
    unsigned cur_size = 0;
    int seq_num = 1;
    int bytes,i;
+   printf(" get_resp: calling bt_peer_get\n");
    bt_peer_t* peer = bt_peer_get(config, from);
-   peer_send_info[peer->id].peer = bt_peer_get(config, from);
+   //peer_send_info[peer->id].peer = bt_peer_get(config, from);
+   printf(" get_resp : called bt_peer_get: peer: %x\n" ,peer);
 
    bytes = 1420;
    char *data_send;
@@ -875,6 +879,7 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock)
 			   index = atoi(index_buffer);
                /* Divide data of a chunk into 512 pkts */
 			   //fseek(data_file,index,SEEK_SET);
+               printf(" get_resp : creating chunks\n");
 			   for (i = 0;i < 512;i++) {
 				   // load data
 				   //data_pkt_array[i] = create_packet(PKT_DATA, 1040,i+1,0, src+index*CHUNK_SIZE+i*1024);
@@ -883,23 +888,27 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock)
                    //print_pkt(&(peer_send_info[peer->id].data[1040*i]));
                    //sleep(5);
 			   }
+               printf(" get_resp : created chunks\n");
 			   munmap(src,statbuf.st_size);
 //			   print_pkt((data_packet_t*)(data_pkt_array[0]));
 		   }
 	   }
    }
    fclose(index_file);
-   cur_size=0;
    
+   printf("Calling notify_chunk_trans_start\n");
    (peer_send_info[peer->id].npkts_sent) = 0;
-   for (i = 0;i < 512;i++) {
+   notify_chunk_trans_start(peer->id, 0);
+   printf("Done notify_chunk_trans_start\n");
+
+   /*for (i = 0;i < 512;i++) {
         printf("Inside for i:%d\n", i);
    		send_chunk(peer->id, i+1, 0);
     	//notify_chunk_trans_start(peer->id, 0);
 	   //packet_sender(config, data_pkt_array[i], peer, sock);
 	   printf("packet sent successfully, #pakcets sent is %u \n", i);
 	   sleep(1);
-   }
+   }*/
  //free(data_pkt_array);
  return;
 }
@@ -924,13 +933,11 @@ void send_chunk(int peer_num, int seq_num, int chunk_num)
         return;
     }
 
-    printf("send_chunk: before bt_peer_get_addr\n");
+    printf("send_chunk - peer_num:%d  seq_num:%d   chunk_num:%d\n", peer_num, seq_num, chunk_num);
     bt_peer_t* peer = bt_peer_get_addr(&config, peer_num);
-    printf("send_chunk: after bt_peer_get_addr\n");
     hostToNet(&(peer_send_info[peer_num].data[1040*(seq_num-1)]));
     spiffy_sendto(peer_sfd, &(peer_send_info[peer_num].data[1040*(seq_num-1)]), 1040, 0, (struct sockaddr *) &peer->addr, sizeof(peer->addr));
-    printf("send_chunk: after spiffy_sendto\n");
     (peer_send_info[peer_num].npkts_sent)++;
-    printf("send_chunk: exit\n");
-    //notify_packet_sent(peer_num, seq_num, chunk_num);
+    notify_packet_sent(peer_num, seq_num, chunk_num);
+    printf("send_chunk exit - peer_num:%d  seq_num:%d   chunk_num:%d\n", peer_num, seq_num, chunk_num);
 }

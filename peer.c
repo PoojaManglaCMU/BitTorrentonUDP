@@ -86,12 +86,11 @@ void process_inbound_udp(int sock, bt_config_t *config)
  else if (token == 0x1) /* IHAVE */
 	 ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
  else if (token == 0x2)  /* GET packet */
-    get_resp(config, buf, (struct sockaddr *) &from);
+    get_resp(config, buf, (struct sockaddr *) &from, sock);
  else if (token == 0x3)  /* DATA packet */
 	 data_packet_handler(config, buf, peer, sock);
  else if (token == 0x4) /* ACK packet */
-   // notify_ack_recvied(peer->id, ((data_packet_t *)buf)->header.ack_num, 0); //TODO: chunk_num irrelevant
-   ;
+   notify_ack_recvied(peer->id, ((data_packet_t *)buf)->header.ack_num, 0);
  else if (token == 0x5) /* DENIED packet */
    ;
 
