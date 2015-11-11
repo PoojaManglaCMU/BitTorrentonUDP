@@ -38,7 +38,7 @@ void notify_ack_sent(int peer_num, int ack_num, int chunk_num);
 
 extern mapping_per_get_req_t mapping_per_get_req;
 extern bt_config_t config;
-
+extern FILE *fp_data;
 extern int peer_sfd;
 typedef struct {
        char data[CHUNK_SIZE];
@@ -270,11 +270,7 @@ int init_mapping_per_get_req(char* chunkFile, char* output_file) {
     strcpy(mapping_per_get_req.get_chunk_file,chunkFile);
     config.output_file[strlen(output_file)] = '\0';
     mapping_per_get_req.get_chunk_file[strlen(mapping_per_get_req.get_chunk_file)] = '\0';
-    /*FILE *fp_data = fopen(config.output_file, "w");
-    fwrite ("a", CHUNK_SIZE*2, 1, fp_data);
-    fclose(fp_data);*/
     
-
     return 0;
 }
 
@@ -663,7 +659,7 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
         printf("\n");
     }
   //  printf("No. of incoming chunks is %d\n", nuchunks_incoming);
-    //if(!peer->sent_req) {
+    if(!peer->sent_req) {
 	    for (i = 0; i < nuchunks_incoming; i++) {
 		  //  printf("Entering for loop\n");  
 		    match_idx = match_need(hash,i);
@@ -675,12 +671,12 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
 			    mapping_per_get_req.num_downloaded |= (1 << match_idx);
 			    memcpy(hash_cpy, hash, CHUNK_HSIZE);
 			    send_get_request(config, hash_cpy, peer, sock);
-                peer_buf[peer->id].data_received = 0;
+			    peer_buf[peer->id].data_received = 0;
 			    break;
 		    }
 		    hash += CHUNK_HSIZE;
 	    } 
-   // }
+    }
 }		
 
 /* DATA packet handler */
@@ -690,7 +686,7 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
         data_packet_t* ack_pkt;
         int i,k;
 	FILE*   fp_chunks;
-	FILE*   fp_data;
+	//FILE*   fp_data;
 	char    line[MAX_LINE_SIZE];
 	char    temp_hash[CHUNK_HSIZE];
 	char* ptr_hash;
@@ -699,17 +695,17 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
 	char datafile[BT_FILENAME_LEN];
         uint8_t hash[CHUNK_HSIZE];
 
-    int size = (int)(((data_packet_t*)buf)->header.packet_len) - 16;
-	 for (k=0; k < size; k++)
-		 peer_buf[peer->id].data[k+ peer_buf[peer->id].data_received] = ((data_packet_t*)buf)->data[k];
-	 
+	int size = (int)(((data_packet_t*)buf)->header.packet_len) - 16;
+	for (k=0; k < size; k++)
+		peer_buf[peer->id].data[k+ peer_buf[peer->id].data_received] = ((data_packet_t*)buf)->data[k];
+
 	peer_buf[peer->id].data_received += size;
-    printf("Size of data packet is %d data_received: %d peer_id:%d\n", size, peer_buf[peer->id].data_received, peer->id);
-    float kb = peer_buf[peer->id].data_received/1024;
+	printf("Size of data packet is %d data_received: %d peer_id:%d\n", size, peer_buf[peer->id].data_received, peer->id);
+	float kb = peer_buf[peer->id].data_received/1024;
 
         #ifdef FC_RECV
         //TODO: check the return val to discard the packet
-        notify_packet_recv(peer->id, ((data_packet_t*)buf)->header.seq_num, 0);
+	notify_packet_recv(peer->id, ((data_packet_t*)buf)->header.seq_num, 0);
         #else
         /* send ack */
         send_ack(peer->id, ((data_packet_t*)buf)->header.seq_num, 0);
@@ -717,27 +713,15 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
          //packet_sender(config1, ack_pkt, peer, sock);
          #endif 
 
-         if (peer_buf[peer->id].data_received != CHUNK_SIZE) {
-            printf("Not finished yet, cur_size = %.5f\n", kb);
-	    return 0;
-        }
+	if (peer_buf[peer->id].data_received != CHUNK_SIZE) {
+		printf("Not finished yet, cur_size = %.5f\n", kb);
+		return 0;
+	}
         
-        printf("Received complete chunk, Store in data file\n");
+	printf("Received complete chunk, Store in data file\n");
         shahash(peer_buf[peer->id].data,peer_buf[peer->id].data_received, hash);
-        print_hash(hash);
+	print_hash(hash);
         
-        if((peer_buf[1].data_received == CHUNK_SIZE) && (peer_buf[2].data_received == CHUNK_SIZE)) {
-        // get hash code
-        shahash(peer_buf[peer->id].data,peer_buf[peer->id].data_received, hash);
-        print_hash(hash);
-        
-        fp_data = fopen("test1.tar", "w");
-        fwrite (peer_buf[1].data, CHUNK_SIZE, 1, fp_data);
-        fwrite (peer_buf[2].data, CHUNK_SIZE, 1, fp_data);
-        fclose(fp_data);
-        }
-        /*shahash(peer_buf[peer->id].data,peer_buf[peer->id].data_received, hash);
-        print_hash(hash);
        // open the chunk file
         printf("chunk file is %s\n", mapping_per_get_req.get_chunk_file);
         if(!(fp_chunks = fopen(mapping_per_get_req.get_chunk_file, "r")))
@@ -747,11 +731,9 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
 	}
 	int index = 0;
         printf("Entering while loop.. ");
-        fp_data = fopen(config.output_file, "w");
+        printf("output file is %s\n", config.output_file);
         while(fgets(line, MAX_LINE_SIZE, fp_chunks) != NULL)
          {
-                 index++;
-                 //parse the line
                  printf("index is %d\n", index);
                  for(i=0; i<MAX_LINE_SIZE; i++)
                          if(line[i] == ' ')
@@ -774,26 +756,23 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
                  if(memcmp(hash, temp_hash, CHUNK_HSIZE)) {
                       printf("Hash did not match\n");   
                       hash_matched = 0;
+                      index++;
+                      continue;
                  }
                    if (hash_matched == 1)
                    {
                            printf("Hash matched\n");
                            offset = index*512*1024;
-			   // Open a data file and write the data at that offset
-			   printf("output file is %s\n", config.output_file);
-			   fp_data = fopen(config.output_file, "w");
-			   int offset_file = lseek(fp_data, offset,SEEK_SET);
-			    fprintf(fp_data, "%s", chunk->data);
-			   FILE * f = fopen ("x.txt", "w");
-			   fseek (fp_data, offset_file, SEEK_SET);
-			   fwrite (peer_buf[peer->id].data, CHUNK_SIZE, 1, fp_data);
+			   printf("output file is %s, offset is %d\n", config.output_file, offset);
+			   int foffset = fseek(fp_data, offset, SEEK_SET);
+                           printf("foffset is %d\n",foffset);
+			   int fwrite_data = fwrite(peer_buf[peer->id].data, CHUNK_SIZE, 1, fp_data);
+                           printf("fwrite_data is %d\n",fwrite_data);
 
                            peer->sent_req = 0;
-                           // Set peer to available
-                           return 1;
+                           return;
                    }
-         }*/
-    //     printf("Reached here..\n");
+         }
 
          return; 
                 

@@ -29,6 +29,7 @@
 mapping_per_get_req_t   mapping_per_get_req;
 bt_config_t             config;
 int   peer_sfd = 0;
+FILE *fp_data = NULL;
 
 void peer_run(bt_config_t *config);
 
@@ -99,6 +100,7 @@ void process_inbound_udp(int sock, bt_config_t *config)
 void process_get(char *chunkfile, char *outputfile, bt_config_t *config, int sock)
 {
   init_mapping_per_get_req(chunkfile, outputfile);
+  fp_data = fopen(outputfile, "w");
 
   /* Prepare a whohas packet */
   whohas_req(chunkfile, sock, config);
