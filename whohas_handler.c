@@ -62,7 +62,6 @@ peer_send_info_t    peer_send_info[MAX_PEER];
  */
 void print_hash(uint8_t *hash) {
 	int i;
-    printf("Printing hash\n");
     for (i = 0; i < CHUNK_HSIZE;) {
         printf("%2X ", hash[i++]);
     }
@@ -320,11 +319,8 @@ int whohas_req(char *chunkfile, int sock, bt_config_t *config) {
     prep_whohas_hdr(whohas_packet, nchunks);
 
     while (peer != NULL) {
-		printf("Entered while loop\n");
-		printf("size of whohas packet is %d", strlen(whohas_packet));
 		whohas = spiffy_sendto(sock, whohas_packet, 60, 0, 
 				(struct sockaddr *) &peer->addr, sizeof(peer->addr));
-		printf("packet sent to peer %d ip address %s:%d and size of packet sent is %zu \n", peer->id, inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), whohas);
 		if (whohas == -1)
 			printf("error\n");
 		peer = peer->next;
@@ -339,7 +335,6 @@ int whohas_req(char *chunkfile, int sock, bt_config_t *config) {
 int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *config) {
 
     assert(whohas_packet != NULL);
-    printf("whohas_resp ENTRY: %s\n", chunkfile);
 
     FILE*   fp_chunks;
     char    line[MAX_LINE_SIZE];
@@ -356,7 +351,6 @@ int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *con
     unsigned char tchar;
     ssize_t ihave;
     bt_peer_t *peer = config->peers;
-    printf("peer is %x\n", peer);
 
     int hash_matched = 0;
 
@@ -398,7 +392,6 @@ int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *con
 
 		for(t=0; t < nuchunks_incoming; t++)
         {
-	    printf("Inside the loop with t: %d\n", t);
 		hash_matched = 1;
 		for(k=0; k<CHUNK_HSIZE; k++)
 		{
@@ -411,10 +404,8 @@ int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *con
 
 		if (hash_matched == 1)
 		{
-			printf("hash matched is true\n");
 			memcpy(ptr, temp_hash, CHUNK_HSIZE);
 			nchunks++;
-			printf("num of chunks is %d\n", nchunks);
 			if(nchunks == MAX_NUM_CHUNKS)
 			{
 				printf("Exceeds MAX_NUM_CHUNKS. Need to prepare another packet\n");
@@ -428,17 +419,12 @@ int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *con
 		}
 
 	}
-    printf("num of chunks is %d\n", nchunks);
 	prep_ihave_hdr(ihave_packet, nchunks);
 
     if(nchunks != 0){
-		printf("peer is %x\n", peer);
 		while (peer != NULL) {
-			printf("Entered while loop\n");
-			printf("size of ihave packet is %d", strlen(ihave_packet));
 			ihave = spiffy_sendto(sock, ihave_packet, (20+nchunks*20), 0,
 					(struct sockaddr *) &peer->addr, sizeof(peer->addr));
-			printf("size of packet sent is %zu \n", ihave);
 			if (ihave == -1)
 				printf("error\n");
 			peer = peer->next;
@@ -537,7 +523,7 @@ int match_need(uint8_t *hash, int j) {
 	chunk_t* chk = mapping_per_get_req.chunks;
 	int hash_matched = 1;
 	if (mapping_per_get_req.num_chunk == 0) {
-	printf("Number of available chunks is zero\n");
+		printf("Number of available chunks is zero\n");
         return -1;
     }
 
@@ -685,11 +671,8 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
 		exit(-1);
 	}
 	int index = 0;
-	printf("Entering while loop.. ");
-	printf("output file is %s\n", config.output_file);
 	while(fgets(line, MAX_LINE_SIZE, fp_chunks) != NULL)
 	{
-		printf("index is %d\n", index);
 		for(i=0; i<MAX_LINE_SIZE; i++)
 			if(line[i] == ' ')
 				break;
@@ -716,14 +699,9 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
 		}
 		if (hash_matched == 1)
 		{
-			printf("Hash matched\n");
 			offset = index*512*1024;
-			printf("output file is %s, offset is %d\n", config.output_file, offset);
 			int foffset = fseek(fp_data, offset, SEEK_SET);
-			printf("foffset is %d\n",foffset);
 			int fwrite_data = fwrite(peer_buf[peer->id].data, CHUNK_SIZE, 1, fp_data);
-			printf("fwrite_data is %d\n",fwrite_data);
-
 			peer->sent_req = 0;
 			return;
 		}
@@ -796,8 +774,6 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock) {
 					// load data
 					create_chunk_pkts(PKT_DATA, 1040, i+1, 0, src+index*CHUNK_SIZE+i*1024, 
 							&(peer_send_info[peer->id].data[1040*i]));
-					//print_pkt(&(peer_send_info[peer->id].data[1040*i]));
-					//sleep(5);
 				}
 				printf(" get_resp : created chunks\n");
 				munmap(src,statbuf.st_size);
