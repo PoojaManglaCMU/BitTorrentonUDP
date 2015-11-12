@@ -27,7 +27,7 @@
 
 /* Global variables*/
 mapping_per_get_req_t   mapping_per_get_req;
-bt_config_t             config;
+bt_config_t	config;
 int   peer_sfd = 0;
 FILE *fp_data = NULL;
 
@@ -99,19 +99,19 @@ void process_inbound_udp(int sock, bt_config_t *config)
 
 void process_get(char *chunkfile, char *outputfile, bt_config_t *config, int sock)
 {
+  printf("processing GET\n");
   init_mapping_per_get_req(chunkfile, outputfile);
   fp_data = fopen(outputfile, "w");
-
   /* Prepare a whohas packet */
+  printf(" Calling whohas req\n");
+  printf("chunkfile is %s, sock is %d, config is %x\n", chunkfile, sock, config); 
   whohas_req(chunkfile, sock, config);
-
   return;
 }
 
 void handle_user_input(char *line, void *cbdata, bt_config_t *config, int sock)
 {
   char chunkf[128], outf[128];
-  
   bzero(chunkf, sizeof(chunkf));
   bzero(outf, sizeof(outf));
   if (sscanf(line, "GET %120s %120s", chunkf, outf)) {

@@ -26,10 +26,9 @@ void process_user_input(int fd, struct user_iobuf *userbuf,
 {
   int nread;
   char *ret;
-
+  printf("Reached here.. in process user input\n");
   assert(userbuf != NULL);
   assert(userbuf->buf != NULL);
-  printf("Reached here.. in process user input\n");
   /* A real program would propagate this error back to the select loop or
    * implement some other form of error handling */
 

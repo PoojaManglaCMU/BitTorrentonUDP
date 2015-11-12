@@ -51,7 +51,7 @@ typedef struct chunk_s {
 	char *data;
 	int cur_size;
 	int num_p;
-        int downloaded;
+	int downloaded;
 	bt_peer_t *providers; /* providers */
 } chunk_t;
  
