@@ -173,6 +173,7 @@ void bt_dump_config(bt_config_t *config) {
     printf("  peer %d: %s:%d\n", p->id, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port));
 }
 
+/* API to get peer structure from the IP address */
 bt_peer_t* bt_peer_get(bt_config_t* config, struct sockaddr * from) {
   bt_peer_t* cur_p = config->peers;
   struct sockaddr_in * cur_addr = (struct sockaddr_in*) from;
@@ -186,6 +187,7 @@ bt_peer_t* bt_peer_get(bt_config_t* config, struct sockaddr * from) {
   return cur_p;
 }
 
+/* API to get peer structure from the peer ID */
 bt_peer_t* bt_peer_get_addr(bt_config_t* config, int peer_num) {
   bt_peer_t* cur_p = config->peers;
   while(cur_p != NULL) {
