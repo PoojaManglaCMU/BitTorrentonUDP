@@ -1,11 +1,9 @@
 /*
  * peer.c
  *
- * Authors: Ed Bardsley <ebardsle+441@andrew.cmu.edu>,
- *          Dave Andersen
- * Class: 15-441 (Spring 2005)
- *
- * Skeleton for 15-441 Project 2.
+ * Authors: Priya Ranjhan Jha <priyaraj@andrew.cmu.edu>,
+ *          Pooja Mangla <pmangla@andrew.cmu.edu>
+ * Class: 15-441 (Fall 2015)
  *
  */
 
@@ -33,10 +31,10 @@ FILE *fp_data = NULL;
 
 void peer_run(bt_config_t *config);
 
+/* Main function: Entry to the application */
 int main(int argc, char **argv)
 {
 
-  //bt_config_t config;
   bt_init(&config, argc, argv);
 
   DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
@@ -59,118 +57,117 @@ int main(int argc, char **argv)
   return 0;
 }
 
-
+/* API to process inbound UDP packet */
 void process_inbound_udp(int sock, bt_config_t *config)
 {
-  struct sockaddr_in from;
-  socklen_t fromlen;
-  char buf[BUFLEN];
-  int i;
+	struct sockaddr_in from;
+	socklen_t fromlen;
+	char buf[BUFLEN];
+	int i;
   
-  fromlen = sizeof(from);
-  int nbytes = spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *)&from, &fromlen);
+	fromlen = sizeof(from);
+	int nbytes = spiffy_recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *)&from, &fromlen);
 
-  printf("process_inbound_udp: %s:%d\n\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
- 
-  char token = buf[3];
+	printf("process_inbound_udp: %s:%d\n\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
-  /* change the endianess of the header */
-  netToHost((data_packet_t*)buf);
+	char token = buf[3];
 
-  /* based on ip, identify the peer id */
-  bt_peer_t* peer = bt_peer_get(config,(struct sockaddr *)&from);
-  printf("Got peer %x %d\n", peer, peer->id);
+	/* change the endianess of the header */
+	netToHost((data_packet_t*)buf);
 
- if (token == 0x0)  /* whohas */
-	 whohas_resp(buf, config->has_chunk_file, sock, config);
- else if (token == 0x1) /* IHAVE */
-	 ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
- else if (token == 0x2)  /* GET packet */
-    get_resp(config, buf, (struct sockaddr *) &from, sock);
- else if (token == 0x3)  /* DATA packet */
-	 data_packet_handler(config, buf, peer, sock);
- else if (token == 0x4) /* ACK packet */
-   notify_ack_recvied(peer->id, ((data_packet_t *)buf)->header.ack_num, 0);
- else if (token == 0x5) /* DENIED packet */
-   ;
+	/* based on ip, identify the peer id */
+	bt_peer_t* peer = bt_peer_get(config,(struct sockaddr *)&from);
+	printf("Got peer %x %d\n", peer, peer->id);
 
- return;
+	if (token == 0x0)  /* whohas */
+		whohas_resp(buf, config->has_chunk_file, sock, config);
+	else if (token == 0x1) /* IHAVE */
+		ihave_resp_recv_handler(buf, sock, config, (struct sockaddr *) &from);
+	else if (token == 0x2)  /* GET packet */
+		get_resp(config, buf, (struct sockaddr *) &from, sock);
+	else if (token == 0x3)  /* DATA packet */
+		data_packet_handler(config, buf, peer, sock);
+	else if (token == 0x4) /* ACK packet */
+		notify_ack_recvied(peer->id, ((data_packet_t *)buf)->header.ack_num, 0);
+	else if (token == 0x5) /* DENIED packet */
+		;
+
+	return;
 }
 
+/* API to process GET request from user */
 void process_get(char *chunkfile, char *outputfile, bt_config_t *config, int sock)
 {
-  printf("processing GET\n");
-  init_mapping_per_get_req(chunkfile, outputfile);
-  fp_data = fopen(outputfile, "w");
-  /* Prepare a whohas packet */
-  printf(" Calling whohas req\n");
-  printf("chunkfile is %s, sock is %d, config is %x\n", chunkfile, sock, config); 
-  whohas_req(chunkfile, sock, config);
-  return;
+	init_mapping_per_get_req(chunkfile, outputfile);
+	fp_data = fopen(outputfile, "w");
+	/* Prepare a whohas packet */
+	whohas_req(chunkfile, sock, config);
+	return;
 }
 
+/* API to scan user input and further call the function to process it */
 void handle_user_input(char *line, void *cbdata, bt_config_t *config, int sock)
 {
-  char chunkf[128], outf[128];
-  bzero(chunkf, sizeof(chunkf));
-  bzero(outf, sizeof(outf));
-  if (sscanf(line, "GET %120s %120s", chunkf, outf)) {
-	  if (strlen(outf) > 0) {
-		  process_get(chunkf, outf, config, sock);
-	  }
-  }
-  return;
+	char chunkf[128], outf[128];
+	bzero(chunkf, sizeof(chunkf));
+	bzero(outf, sizeof(outf));
+	if (sscanf(line, "GET %120s %120s", chunkf, outf)) {
+		if (strlen(outf) > 0) {
+			process_get(chunkf, outf, config, sock);
+		}
+	}
+	return;
 }
 
+/* Entry to the primary application: Process inbound UDP packet or GET request
+ * from user based on the FD set upon select system call
+ */
 void peer_run(bt_config_t *config)
 {
-  int sock;
-  struct sockaddr_in myaddr;
-  fd_set readfds;
-  struct user_iobuf *userbuf;
-  int nfds;
+	int sock;
+	struct sockaddr_in myaddr;
+	fd_set readfds;
+	struct user_iobuf *userbuf;
+	int nfds;
   
-  if ((userbuf = create_userbuf()) == NULL) {
-    perror("peer_run could not allocate userbuf");
-    exit(-1);
-  }
-  
-  if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) == -1) {
-    perror("peer_run could not create socket");
-    exit(-1);
-  }
-  
-  bzero(&myaddr, sizeof(myaddr));
-  myaddr.sin_family = AF_INET;
-  myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  myaddr.sin_port = htons(config->myport);
-  
-  if (bind(sock, (struct sockaddr *) &myaddr, sizeof(myaddr)) == -1) {
-    perror("peer_run could not bind socket");
-    exit(-1);
-  }
-  
-  spiffy_init(config->identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
-  config->sock = sock;
-  peer_sfd = sock;
-  
-  printf("identity is %d and sock is %d\n", config->identity, sock);
+	if ((userbuf = create_userbuf()) == NULL) {
+		perror("peer_run could not allocate userbuf");
+		exit(-1);
+	}
+
+	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) == -1) {
+		perror("peer_run could not create socket");
+		exit(-1);
+	}
+
+	bzero(&myaddr, sizeof(myaddr));
+	myaddr.sin_family = AF_INET;
+	myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	myaddr.sin_port = htons(config->myport);
+
+	if (bind(sock, (struct sockaddr *) &myaddr, sizeof(myaddr)) == -1) {
+		perror("peer_run could not bind socket");
+		exit(-1);
+	}
+
+	spiffy_init(config->identity, (struct sockaddr *)&myaddr, sizeof(myaddr));
+	config->sock = sock;
+	peer_sfd = sock;
 
 #ifdef FC_RECV
-  flow_ctrl_init();
+	flow_ctrl_init();
 #endif
 
-  while (1)
-  {
-    printf("looping for next invocation of select\n");
-    FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
-    FD_SET(sock, &readfds);
-    
-    nfds = select(sock+1, &readfds, NULL, NULL, NULL);
-    
-    if (nfds > 0) {
-      if (FD_ISSET(sock, &readfds))
+	while (1)
+	{
+		FD_ZERO(&readfds);
+		FD_SET(STDIN_FILENO, &readfds);
+		FD_SET(sock, &readfds);
+
+		nfds = select(sock+1, &readfds, NULL, NULL, NULL);
+
+		if (nfds > 0) {
+			if (FD_ISSET(sock, &readfds))
 	       process_inbound_udp(sock, config);
       
       if (FD_ISSET(STDIN_FILENO, &readfds))

@@ -1,3 +1,15 @@
+/******************************************************************************
+* File:        whohas_handler.c                                               *
+*                                                                             *
+* Description: This file contains the APIs to handle WHOHAS and IHAVE requests*
+*              and respond accordingly.                                       *
+*                                                                             *
+* Author:      Priya Ranjan Jha <priyaraj@andrew.cmu.edu>
+               Pooja Mangla     <pmangla@andrew.cmu.edu                       *
+*******************************************************************************/
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,10 +48,13 @@ void notify_ack_sent(int peer_num, int ack_num, int chunk_num);
 
 #define SEND_DATA_PKT_SIZE 1040
 
+/* Global variables */
 extern mapping_per_get_req_t mapping_per_get_req;
 extern bt_config_t config;
 extern FILE *fp_data;
 extern int peer_sfd;
+
+/* Buffer to store incoming data packets*/
 typedef struct {
 	char data[CHUNK_SIZE];
 	int data_received;
@@ -47,6 +62,7 @@ typedef struct {
 
 peer_buf_t peer_buf[MAX_PEER];
 
+/* Buffer to store outgoing data packets*/
 typedef struct {
 	char data[512*1040];
     int  chunk_id;
@@ -57,7 +73,7 @@ typedef struct {
 peer_send_info_t    peer_send_info[MAX_PEER];
 
 /** @brief Print out hash
- *  @param hash the pointer to the hash to be printed out
+ *  @param hash: the pointer to the hash to be printed out
  *  @return void
  */
 void print_hash(uint8_t *hash) {
@@ -67,6 +83,11 @@ void print_hash(uint8_t *hash) {
     }
     printf("\n");
 }
+
+/** @brief Print out the packet header
+ *  @param data_packet_t: the pointer to the packet to be printed out
+ *  @return void
+ */
 
 void print_pkt(data_packet_t* pkt) {
     header_t* hdr = &pkt->header;
@@ -118,7 +139,15 @@ void netToHost(data_packet_t* pkt) {
     pkt->header.ack_num = ntohl(pkt->header.ack_num);
 }
 
-/* Create packet to be sent */
+/** @brief Create the packet to be sent
+ *  @param: type : type of packet
+ *          pkt_len: length of packet
+ *          seq: sequence number of packet
+ *          ack : ack number of packet
+ *          data : data to be sent
+ *  @return data_packet_t: pointer to the packet created
+ */
+
 data_packet_t *create_packet(int type, short pkt_len, u_int seq,
                             u_int ack, uint8_t *data) {
     data_packet_t *pkt = (data_packet_t *)malloc(sizeof(data_packet_t));
@@ -135,6 +164,16 @@ data_packet_t *create_packet(int type, short pkt_len, u_int seq,
     return pkt;
 }
 
+/** @brief Create the packet to be sent
+ *  @param: type : type of packet
+ *          pkt_len: length of packet
+ *          seq: sequence number of packet
+ *          ack : ack number of packet
+ *          data : data to be sent
+ *          dst: pointer to the packet to be created
+ *  @return void
+ */
+
 void create_chunk_pkts(int type, short pkt_len, u_int seq, u_int ack, uint8_t *data, char* dst) {
     data_packet_t *pkt = (data_packet_t *) dst;
     pkt->header.magicnum = 15441; /* Magic number */
@@ -150,17 +189,15 @@ void create_chunk_pkts(int type, short pkt_len, u_int seq, u_int ack, uint8_t *d
     return;
 }
 
-/* Create ACK packet */
-data_packet_t* ACK_maker(int ack, data_packet_t* pkt) {
-    assert(pkt->header.packet_type == PKT_DATA);
-    data_packet_t* ack_pkt = create_packet(PKT_ACK, HDR_LEN, 0, ack, NULL);
-    return ack_pkt;
-}
-
-/* API to send packet */
+/** @brief API to send the packet to peer
+ *  @param: config : pointer to bt_config_t structure
+ *          pkt: pointer to the  packet to be send
+ *          peer: pointer to peer to whom the packet is to be sent
+ *          sock : socket over which the packet is sent
+ *  @return get: number of bytes sent
+ */
 ssize_t packet_sender(bt_config_t *config, data_packet_t* pkt, bt_peer_t *peer, int sock) {
     int pkt_size = pkt->header.packet_len;
-    int type = pkt->header.packet_type;
     ssize_t get;
     int flag;
     hostToNet(pkt);
@@ -175,7 +212,10 @@ ssize_t packet_sender(bt_config_t *config, data_packet_t* pkt, bt_peer_t *peer, 
 }
 
 
-/* Initialize mapping per get request on a GET request from user */
+/** @brief API to initialize mapping per get request on a GET request from user
+ *   @param: chunkFile and output file
+ *   @return 0 on success, -1 on error
+ */ 
 int init_mapping_per_get_req(char* chunkFile, char* output_file) {
     
     FILE* file = fopen(chunkFile,"r");
@@ -184,12 +224,11 @@ int init_mapping_per_get_req(char* chunkFile, char* output_file) {
 
     int line_number = 0;
     int i = 0;
-    int k,j;
+    int k,j = 0;
     char read_buffer[BUF_SIZE];
     char *ptr_hash;
     char line[MAX_LINE_SIZE];
     int nchunks;
-    j=0;
     
     /* get chunks number */
     while (fgets(read_buffer, BUF_SIZE,file)) {
@@ -254,7 +293,12 @@ int init_mapping_per_get_req(char* chunkFile, char* output_file) {
     return 0;
 }
 
-/* Send whohas request */ 
+/** @brief  Prepare WHOHAS request to be sent to all peers
+ *   
+ *  @param  chunkfile, socket and pointer to bt_config_t structure
+ *
+ *  @return 0 on success, -1 on error
+ */
 int whohas_req(char *chunkfile, int sock, bt_config_t *config) {
     FILE*   fp_chunks;
     char    line[MAX_LINE_SIZE];
@@ -331,7 +375,14 @@ int whohas_req(char *chunkfile, int sock, bt_config_t *config) {
 
 }
 
-/* Send IHAVE packet */
+/** @brief  Response to WHOHAS request
+ *   
+ *  @param  whohas packet: The WHOHAS request
+ *          chunkfile: file that specifies the chunks peer has.
+ *          config: pointer to bt_config_t structure
+ *
+ *  @return 0 on success, -1 on error
+ */
 int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *config) {
 
     assert(whohas_packet != NULL);
@@ -435,6 +486,12 @@ int whohas_resp(char *whohas_packet, char* chunkfile, int sock, bt_config_t *con
 	return 0;
 }
 
+/** @brief  API to prepare WHOHAS header
+ *   
+ *  @param  whohas packet: packet whose header is to be prepared
+ *          nchunks : number of chunks the server has
+ *  @return void
+ */
 void prep_whohas_hdr(char* whohas_packet, int nchunks) {
 	header_t header;
 	char* pWhoHas = whohas_packet;
@@ -460,6 +517,13 @@ void prep_whohas_hdr(char* whohas_packet, int nchunks) {
     /* write num chunks */
     *((char*)           (pWhoHas + 16)) = nchunks;
 }
+
+/** @brief  API to prepare IHAVE header
+ *
+ *  @param  ihave packet: packet whose header is to be prepared
+ *          nchunks : number of chunks the server has
+ *  @return void
+ */
 
 void prep_ihave_hdr(char* ihave_packet, int nchunks) {
     
@@ -488,6 +552,12 @@ void prep_ihave_hdr(char* ihave_packet, int nchunks) {
     *((char*)           (pIhave + 16)) = nchunks;
 }
 
+/** @brief  API to convert text to number
+ *
+ *  @param  input: the text to be converted
+ *   
+ *  @return number
+ */
 char text2num(char* input) {
     
 	int num = 0;
@@ -499,6 +569,12 @@ char text2num(char* input) {
     return (char)num;
 }
 
+/** @brief  API to convert character to digit
+ *
+ *  @param  ch: character to be converted
+ *
+ *  @return corresponding integer
+ */
 int char2digit(char ch) {
     
 	int num;
@@ -517,7 +593,12 @@ int char2digit(char ch) {
     return num;
 }
 
-/* Check if we need to download the chunk we have received IHAVE response for */
+/* @brief: Check if we need to download the chunk we have received IHAVE response for 
+ * 
+ * @param: hash: hash value that we need to match with existing chunk hashes
+ *
+ * @ return -1 if we don't want to download else index of the chunk that we want to download
+ */
 int match_need(uint8_t *hash, int j) {
 	int i,k;
 	chunk_t* chk = mapping_per_get_req.chunks;
@@ -564,7 +645,14 @@ int match_need(uint8_t *hash, int j) {
 	return -1;
 }
 
-/* Send GET data packet to download the chunk data */
+/* @brief : Send GET data packet to download the chunk data 
+ *
+ * @param : config: pointer to bt_config_t structure
+ *          hash: chunk hash for which we need to request data
+ *          peer : peer from whom to request data
+ *          sock: socket over which data is to be requested
+ * @return void
+ */
 void send_get_request(bt_config_t *config, uint8_t* hash, bt_peer_t *peer, int sock) {
 	/* create GET pkt and send to the peer */
 	data_packet_t *packet;
@@ -577,7 +665,14 @@ void send_get_request(bt_config_t *config, uint8_t* hash, bt_peer_t *peer, int s
 #endif
 }  
 
-/* Handle IHAVE data packet, Decide whether to send GET or not */
+/* @brief: Handle IHAVE data packet, Decide whether to send GET or not 
+ *  
+ * @param : IHAVE packet packet to which response is to be sent.
+ *          sock: socket over which packet is to be sent
+ *          config : pointer to the bt_config_t structure
+ *          from: IP address of peer to which packet is to be sent.
+ * @return void
+ */
 void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config, struct sockaddr *from) {
 	int i;
 	assert(ihave_packet != NULL);
@@ -604,7 +699,6 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
 		}
 		printf("\n");
 	}
-  //  printf("No. of incoming chunks is %d\n", nuchunks_incoming);
 	if(!peer->sent_req) {
 		for (i = 0; i < nuchunks_incoming; i++) {
 			match_idx = match_need(hash,i);
@@ -624,19 +718,25 @@ void ihave_resp_recv_handler (char *ihave_packet, int sock, bt_config_t *config,
 	}
 }		
 
-/* DATA packet handler */
+/* @brief: Handle data packets
+ *
+ * @param : sock: socket over which packet is to be sent
+ *          config1 : pointer to the bt_config_t structure
+ *          from: IP address of peer from which packet has arrived.
+ * @return void
+ */
 void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int sock) {
 	
 	chunk_t *chunk;
 	data_packet_t* ack_pkt;
-	int i,k;
+	int 	i,k;
 	FILE*   fp_chunks;
 	char    line[MAX_LINE_SIZE];
 	char    temp_hash[CHUNK_HSIZE];
-	char* ptr_hash;
-	int hash_matched = 0;
-	int offset;
-	char datafile[BT_FILENAME_LEN];
+	char*	ptr_hash;
+	int 	hash_matched = 0;
+	int 	offset;
+	char 	datafile[BT_FILENAME_LEN];
 	uint8_t hash[CHUNK_HSIZE];
 
 	int size = (int)(((data_packet_t*)buf)->header.packet_len) - 16;
@@ -700,8 +800,8 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
 		if (hash_matched == 1)
 		{
 			offset = index*512*1024;
-			int foffset = fseek(fp_data, offset, SEEK_SET);
-			int fwrite_data = fwrite(peer_buf[peer->id].data, CHUNK_SIZE, 1, fp_data);
+			fseek(fp_data, offset, SEEK_SET);
+			fwrite(peer_buf[peer->id].data, CHUNK_SIZE, 1, fp_data);
 			peer->sent_req = 0;
 			return;
 		}
@@ -710,16 +810,21 @@ void data_packet_handler(bt_config_t *config1, char* buf, bt_peer_t *peer, int s
 	return; 
 }
 
-/* GET packet handler */
+/* @brief: Handle GET packet
+ *
+ * @param : buf: GET packet to which response is to be sent.
+ *          sock: socket over which packet is to be sent
+ *          config : pointer to the bt_config_t structure
+ *          from: IP address of peer to which packet is to be sent.
+ * @return void
+ */
+
 void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock) {
 
 	unsigned cur_size = 0;
 	int seq_num = 1;
-	int bytes,i;
+	int i, index = 0;
 	bt_peer_t* peer = bt_peer_get(config, from);
-	bytes = 1420;
-	char *data_send;
-	int index = 0;
 	char hash_buffer[HASH_HEX_SIZE] = {0};
 	char hash_hex[HASH_HEX_SIZE] = {0};
 	char buffer[BT_FILENAME_LEN+5] = {0};
@@ -730,7 +835,6 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock) {
 	data_packet_t *pkt = (data_packet_t *)buf;
 	int data_fd;
    
-
 	/* retrieve name of master_data_file from first line of master_chunk_file */
 	FILE* index_file = fopen(config->chunk_file,"r");
 	if(index_file == NULL) {
@@ -739,9 +843,8 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock) {
 	}
 	fgets(buffer,BT_FILENAME_LEN,index_file);
 	sscanf(buffer,"File: %s\n",datafile);
-
-
-	// skip the next line
+	
+    // skip the next line
 	fgets(buffer,BT_FILENAME_LEN,index_file);
 
 	// open file to read 
@@ -787,7 +890,14 @@ void get_resp(bt_config_t *config, char *buf, struct sockaddr *from, int sock) {
 
 	return;
 }
-  
+
+/* @brief: Send ACK packet
+ *  
+ * @param : peer_num: peer ID to which ACK  is to be sent.
+ *          seq_num : ACK num to be sent
+ *          chunk_num  : chunk ID of the chunk to be set
+ * @return void
+ * */
 void send_ack(int peer_num, int seq_num, int chunk_num) {
 
 	if(seq_num > 512)        // max_num of packets possible for a chunk: access using some global
@@ -806,7 +916,13 @@ void send_ack(int peer_num, int seq_num, int chunk_num) {
 
 int testing_done = 0;
 
-/* Invoked by flow control: application needs to implement these */
+/* @brief: Send data packets
+ *
+ * @param : peer_num: peer ID to which ACK  is to be sent.
+ *          seq_num : Sequence num to be sent
+ *          chunk_num  : chunk ID of the chunk to be set
+ * @return void
+ * */
 void send_chunk(int peer_num, int seq_num, int chunk_num) {
     
 	if(seq_num > 512)        // max_num of packets possible for a chunk: access using some global
