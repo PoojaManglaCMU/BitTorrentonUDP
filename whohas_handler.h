@@ -1,3 +1,14 @@
+/******************************************************************************
+* File:        whohas_handler.h                                               *
+*                                                                             *
+* Description: Header file for declaration of various structures and functions* 
+               used by whohas_handler.c                                       *   
+*                                                                             *
+* Author:      Priya Ranjan Jha <priyaraj@andrew.cmu.edu>                     *                                                                            
+               Pooja Mangla <pmangla@andrew.cmu.edu>                          *
+*******************************************************************************/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,20 +41,6 @@ typedef struct{
   unsigned int seq_num;
   unsigned ack_num;
 } header_t;
-
-/*typedef struct mapping_per_get_req {
-	char chunk_hash[CHUNK_HSIZE];
-	peer_t *peer;
-	int downloaded;
-	int sent_request;
-} mapping_per_get_req_t;
-
-typedef struct mapping_per_get_req {
-        char chunk_hash[CHUNK_HSIZE];
-        peer_t *peer;
-        int downloaded;
-        int sent_request;
-} mapping_per_get_req_t; */
 
 typedef struct chunk_s {
 	int id;
